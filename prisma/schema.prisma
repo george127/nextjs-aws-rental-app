@@ -8,61 +8,64 @@ datasource db {
 }
 
 model User {
-  id                String         @id @default(uuid())
-  email             String         @unique
-  phone             String?       
-  name              String?
-  password          String
-  role              Role
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id        String   @id @default(uuid())
+  email     String   @unique
+  phone     String?
+  name      String?
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  managedProperties Property[]     @relation("ManagerProperties")
+  managedProperties Property[]            @relation("ManagerProperties")
   tenantProfile     TenantProfile?
+  applications      PropertyApplication[]
 }
 
-
 model Property {
-  id           String   @id @default(uuid())
-  name         String   // Property name
-  address      String   // Full address
-  
-  // Price information
-  rentAmount   Float    // Monthly rent
-  securityDeposit Float // Security deposit
-  
-  // Property details
-  bedrooms     Int
-  bathrooms    Int
-  squareFeet   Int?
-  description  String?  // Detailed description
-  
-  // Status & type
-  propertyType String   // "apartment", "house", "condo"
-  status       String   @default("vacant") // "occupied", "vacant", "maintenance"
-  
-  // Manager/Owner
-  managerId    String
-  manager      User     @relation("ManagerProperties", fields: [managerId], references: [id])
-  
-  imageData           String?              // Base64 encoded image (for testing only)
-  imageUrl            String?              // For future S3 URL
+  id              String   @id @default(uuid())
+  name            String
+  address         String
+  rentAmount      Float
+  securityDeposit Float
+  bedrooms        Int
+  bathrooms       Int
+  squareFeet      Int?
+  description     String?
+  propertyType    String
+  status          String   @default("vacant")
+  managerId       String
+  manager         User     @relation("ManagerProperties", fields: [managerId], references: [id])
+  imageData       String?
+  imageUrl        String?
+  city            String
+  state           String
+  zipCode         String
+  amenities       String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  // Location details
-  city         String
-  state        String
-  zipCode      String
-  
-  // Amenities
-  amenities    String[] // ["parking", "pool", "gym", "washer/dryer"]
-  
-  // Timestamps
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  tenants      TenantProfile[]
+  tenants             TenantProfile[]
   maintenanceRequests MaintenanceRequest[]
+
+  applications PropertyApplication[]
+}
+
+model PropertyApplication {
+  id         String  @id @default(uuid())
+  propertyId String
+  userId     String? // 🔑 ADD THIS
+
+  tenantName String
+  email      String
+  phone      String?
+  message    String?
+
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
 }
 
 model TenantProfile {

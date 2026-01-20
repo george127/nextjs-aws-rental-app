@@ -21,12 +21,14 @@ import {
 const sidebarItems = [
   { name: "Dashboard", href: "/manager/dashboard", icon: Home },
   { name: "Properties", href: "/manager/properties", icon: Building2 },
+  { name: "Applications", href: "/manager/applications", icon: FileText },
   { name: "Tenants", href: "/manager/tenants", icon: Users },
   { name: "Assign Rent", href: "/manager/rent", icon: FileText },
   { name: "Payments", href: "/manager/payments", icon: CreditCard },
   { name: "Maintenance", href: "/manager/maintenance", icon: Wrench },
   { name: "Reports", href: "/manager/reports", icon: BarChart3 },
 ];
+
 
 export default function ManagerSidebar() {
   const pathname = usePathname();

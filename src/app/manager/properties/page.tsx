@@ -105,7 +105,7 @@ export default function PropertiesPage() {
           {properties.map((prop) => (
             <div
               key={prop.id}
-              className="flex rounded-xl overflow-hidden mb-6 shadow-sm"
+              className="flex bg-white rounded-xl overflow-hidden mb-6 shadow-sm"
             >
               {/* IMAGE */}
               <div className="">

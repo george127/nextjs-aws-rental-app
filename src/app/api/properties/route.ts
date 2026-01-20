@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/jwt";
+import { NextRequest } from "next/server";
 
 interface JwtPayload {
   id: string;
@@ -69,29 +70,42 @@ export async function POST(req: Request) {
 /* ======================================================
    FETCH MANAGER PROPERTIES
 ====================================================== */
-export async function GET(req: Request) {
+
+
+export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get("auth_token")?.value;
+
     if (!token) {
-      return NextResponse.json({ error: "Unauthorized. No token." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized. No token." },
+        { status: 401 }
+      );
     }
 
-    let payload: JwtPayload;
+    let payload: JwtPayload & { id: string; role: string };
+
     try {
-      payload = verifyToken(token) as JwtPayload;
+      payload = verifyToken(token) as JwtPayload & {
+        id: string;
+        role: string;
+      };
     } catch {
-      return NextResponse.json({ error: "Unauthorized. Invalid token." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized. Invalid token." },
+        { status: 401 }
+      );
     }
 
-    if (!payload?.id || payload.role !== "MANAGER") {
-      return NextResponse.json({ error: "Unauthorized. Only managers can view properties." }, { status: 401 });
+    if (payload.role !== "MANAGER") {
+      return NextResponse.json(
+        { error: "Unauthorized. Only managers can view properties." },
+        { status: 401 }
+      );
     }
 
-    const managerId = payload.id;
-
-    // Fetch all fields for this manager's properties
     const properties = await prisma.property.findMany({
-      where: { managerId },
+      where: { managerId: payload.id },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -110,18 +124,21 @@ export async function GET(req: Request) {
         amenities: true,
         imageData: true,
         status: true,
-        managerId: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    return NextResponse.json(properties, { status: 200 });
+    return NextResponse.json(properties);
   } catch (error) {
     console.error("FETCH PROPERTIES ERROR:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
+
 
 /* ======================================================
    UPDATE PROPERTY (PARTIAL UPDATE)

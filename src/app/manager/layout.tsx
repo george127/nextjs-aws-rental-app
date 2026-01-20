@@ -4,7 +4,7 @@ import ManagerSidebar from "@/components/manager/ManagerSidebar";
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-gray-200">
       {/* Sidebar with logout */}
       <ManagerSidebar />
       {/* Main content */}
