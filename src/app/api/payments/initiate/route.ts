@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/jwt";
 import { randomUUID } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: Request) {
+
+export async function POST(req: NextRequest) {
   try {
     // 1️⃣ Get auth token
     const token = req.cookies.get("auth_token")?.value;
