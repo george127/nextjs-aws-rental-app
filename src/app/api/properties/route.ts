@@ -12,7 +12,7 @@ interface JwtPayload {
 /* ======================================================
    CREATE PROPERTY
 ====================================================== */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     // 1️⃣ Get token from cookie
     const token = req.cookies.get("auth_token")?.value; // <-- THIS
