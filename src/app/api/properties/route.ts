@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
 /* ======================================================
    UPDATE PROPERTY (PARTIAL UPDATE)
 ====================================================== */
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const token = req.cookies.get("auth_token")?.value;
     if (!token) {
@@ -201,7 +201,7 @@ export async function PATCH(req: Request) {
 /* ======================================================
    DELETE PROPERTY
 ====================================================== */
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
     const token = req.cookies.get("auth_token")?.value;
     if (!token) {
