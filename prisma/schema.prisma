@@ -8,19 +8,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  phone     String?
-  name      String?
-  password  String
-  role      Role
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid()) 
+  cognitoSub   String   @unique              // Cognito user ID (sub)
+  email        String   @unique
+  phone        String?
+  name         String?
+  role         Role
 
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
   managedProperties Property[]            @relation("ManagerProperties")
   tenantProfile     TenantProfile?
   applications      PropertyApplication[]
 }
+
 
 model Property {
   id              String   @id @default(uuid())

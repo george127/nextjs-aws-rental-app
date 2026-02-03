@@ -1,50 +1,232 @@
+
+
 import { NextResponse } from "next/server";
+import {
+  CognitoIdentityProviderClient,
+  SignUpCommand,
+  ConfirmSignUpCommand,
+  ResendConfirmationCodeCommand,
+  AdminGetUserCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
-import { signToken } from "@/lib/jwt";
+
+/* -------------------------------------------------------------------------- */
+/*                               COGNITO SETUP                                */
+/* -------------------------------------------------------------------------- */
+
+const cognito = new CognitoIdentityProviderClient({
+  region: "us-east-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
+const USER_POOL_ID = process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID!;
+const CLIENT_ID = process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID!;
+
+/* -------------------------------------------------------------------------- */
+/*                         PHONE FORMAT (E.164 SAFE)                           */
+/* -------------------------------------------------------------------------- */
+
+function formatPhoneE164(phone?: string | null): string | null {
+  if (!phone) return null;
+
+  let digits = phone.replace(/\D/g, "");
+
+  // 🇬🇭 Ghana default
+  if (digits.startsWith("0")) {
+    digits = "233" + digits.slice(1);
+  }
+
+  const formatted = `+${digits}`;
+  const e164Regex = /^\+[1-9]\d{7,14}$/;
+
+  return e164Regex.test(formatted) ? formatted : null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       FETCH USER ATTRIBUTES (ADMIN)                         */
+/* -------------------------------------------------------------------------- */
+
+async function getCognitoUserAttributes(email: string) {
+  const command = new AdminGetUserCommand({
+    UserPoolId: USER_POOL_ID,
+    Username: email,
+  });
+
+  const response = await cognito.send(command);
+
+  const attributes: Record<string, string> = {};
+  response.UserAttributes?.forEach((attr) => {
+    if (attr.Name && attr.Value) {
+      attributes[attr.Name] = attr.Value;
+    }
+  });
+
+  return attributes;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               POST – REGISTER                               */
+/* -------------------------------------------------------------------------- */
 
 export async function POST(req: Request) {
   try {
-    const { name, email, phone, password, role } = await req.json(); // ✅ include phone
+    const { name, email, phone, password, role } = await req.json();
 
     if (!email || !password || !role) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists) {
-      return NextResponse.json({ error: "Email exists" }, { status: 409 });
+    const formattedPhone = formatPhoneE164(phone);
+
+    if (phone && !formattedPhone) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Invalid phone number. Use international format e.g. +233551234567",
+        },
+        { status: 400 }
+      );
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const userAttributes = [
+      { Name: "email", Value: email },
+      ...(name ? [{ Name: "name", Value: name }] : []),
+      ...(formattedPhone
+        ? [{ Name: "phone_number", Value: formattedPhone }]
+        : []),
+    ];
 
-    const user = await prisma.user.create({
-      data: { name, email, phone, password: hashed, role }, // ✅ save phone
+    const command = new SignUpCommand({
+      ClientId: CLIENT_ID,
+      Username: email,
+      Password: password,
+      UserAttributes: userAttributes,
     });
 
-    // 🔐 Create token
-    const token = signToken({
-      id: user.id,
-      role: user.role,
-    });
+    await cognito.send(command);
 
-    const res = NextResponse.json({
-      message: "Registered & logged in",
-      role: user.role,
-    });
+    // Temporarily store role in a server-side memory or DB table
+    // (optional) For now, frontend can send role again during confirmation
 
-    // 🍪 Auto-login cookie
-    res.cookies.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
+    return NextResponse.json({
+      success: true,
+      message:
+        "Registration successful. Check your email for the verification code.",
     });
+  } catch (error: any) {
+    console.error("Cognito SignUp Error:", error);
 
-    return res;
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Registration failed",
+      },
+      { status: 500 }
+    );
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*                           PUT – CONFIRM EMAIL                               */
+/* -------------------------------------------------------------------------- */
+
+export async function PUT(req: Request) {
+  try {
+    const { email, confirmationCode, role } = await req.json();
+
+    if (!email || !confirmationCode || !role) {
+      return NextResponse.json(
+        { success: false, error: "Email, code, and role are required" },
+        { status: 400 }
+      );
+    }
+
+    // 1️⃣ Confirm Cognito signup
+    await cognito.send(
+      new ConfirmSignUpCommand({
+        ClientId: CLIENT_ID,
+        Username: email,
+        ConfirmationCode: confirmationCode,
+      })
+    );
+
+    // 2️⃣ Fetch Cognito attributes
+    const attributes = await getCognitoUserAttributes(email);
+
+    const cognitoSub = attributes.sub;
+    const name = attributes.name ?? null;
+    const phone = attributes.phone_number ?? null;
+
+    // 3️⃣ Persist user in Prisma with correct role
+    await prisma.user.create({
+      data: {
+        email,
+        cognitoSub,
+        name,
+        phone,
+        role: role as "TENANT" | "MANAGER",
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Email verified successfully. You can now log in.",
+    });
+  } catch (error: any) {
+    console.error("Confirm Error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Invalid confirmation code",
+      },
+      { status: 400 }
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          PATCH – RESEND CODE                                */
+/* -------------------------------------------------------------------------- */
+
+export async function PATCH(req: Request) {
+  try {
+    const { email } = await req.json();
+
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: "Email is required" },
+        { status: 400 }
+      );
+    }
+
+    await cognito.send(
+      new ResendConfirmationCodeCommand({
+        ClientId: CLIENT_ID,
+        Username: email,
+      })
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: "Verification code resent successfully.",
+    });
+  } catch (error: any) {
+    console.error("Resend Error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Failed to resend code",
+      },
+      { status: 500 }
+    );
+  }
+}
