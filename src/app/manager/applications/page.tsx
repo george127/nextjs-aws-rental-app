@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import Phone from "lucide-react/dist/esm/icons/phone";
-import Home from "lucide-react/dist/esm/icons/home";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import MessageSquare from "lucide-react/dist/esm/icons/message-square";
-import User from "lucide-react/dist/esm/icons/user";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
-import Clock from "lucide-react/dist/esm/icons/clock";
+import { Mail } from "lucide-react";
+import { Phone } from "lucide-react";
+import { Home } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { MessageSquare } from "lucide-react";
+import { User } from "lucide-react";
+import { CheckCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
+import { Clock } from "lucide-react";
+
 
 type Application = {
   id: string;
