@@ -24,6 +24,8 @@ const cognito = new CognitoIdentityProviderClient({
 
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
+console.log("CLIENT_ID:", process.env.COGNITO_USER_POOL_CLIENT_ID);
+console.log("POOL:", process.env.COGNITO_USER_POOL_ID);
 
 /* -------------------------------------------------------------------------- */
 /*                         PHONE FORMAT (E.164 SAFE)                           */
