@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const CLIENT_ID = process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID!;
+const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
 
 export async function POST(req: Request) {
   try {
@@ -18,8 +18,8 @@ export async function POST(req: Request) {
     const client = new CognitoIdentityProviderClient({
       region: "us-east-1",
       credentials: {
-        accessKeyId: process.env.NEXT_AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.NEXT_AWS_SECRET_ACCESS_KEY!,
+        accessKeyId: process.env.MY_AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY!,
       },
     });
 

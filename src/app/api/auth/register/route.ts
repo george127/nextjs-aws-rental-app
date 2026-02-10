@@ -17,14 +17,14 @@ import { prisma } from "@/lib/prisma";
 const cognito = new CognitoIdentityProviderClient({
   region: "us-east-1",
   credentials: {
-    accessKeyId: process.env.NEXT_AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.NEXT_AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.MY_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY!,
   },
 });
 
-const USER_POOL_ID = process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID!;
-const CLIENT_ID = process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID!;
- 
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
+const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
+
 /* -------------------------------------------------------------------------- */
 /*                         PHONE FORMAT (E.164 SAFE)                           */
 /* -------------------------------------------------------------------------- */
