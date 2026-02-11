@@ -7,7 +7,7 @@ import {
   ConfirmSignUpCommand,
   ResendConfirmationCodeCommand,
   AdminGetUserCommand,
-} from "@aws-sdk/client-cognito-identity-provider"; 
+} from "@aws-sdk/client-cognito-identity-provider";
 import { prisma } from "@/lib/prisma";
 
 /* -------------------------------------------------------------------------- */
@@ -25,7 +25,7 @@ console.log("POOL:", process.env.COGNITO_USER_POOL_ID);
 
 
 console.log("ENV CHECK:", {
-  client: process.env.COGNITO_USER_POOL_CLIENT_ID, 
+  client: process.env.COGNITO_USER_POOL_CLIENT_ID,
   pool: process.env.COGNITO_USER_POOL_ID,
 });
 
