@@ -16,16 +16,18 @@ import { prisma } from "@/lib/prisma";
 
 const cognito = new CognitoIdentityProviderClient({
   region: "us-east-1",
-  credentials: {
-    accessKeyId: process.env.MY_AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY!,
-  },
 });
 
 const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
 console.log("CLIENT_ID:", process.env.COGNITO_USER_POOL_CLIENT_ID);
 console.log("POOL:", process.env.COGNITO_USER_POOL_ID);
+
+
+console.log("ENV CHECK:", {
+  client: process.env.COGNITO_USER_POOL_CLIENT_ID,
+  pool: process.env.COGNITO_USER_POOL_ID,
+});
 
 /* -------------------------------------------------------------------------- */
 /*                         PHONE FORMAT (E.164 SAFE)                           */
