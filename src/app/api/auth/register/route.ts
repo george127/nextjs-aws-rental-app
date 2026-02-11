@@ -1,5 +1,3 @@
-
-
 import { NextResponse } from "next/server";
 import {
   CognitoIdentityProviderClient,
@@ -7,30 +5,26 @@ import {
   ConfirmSignUpCommand,
   ResendConfirmationCodeCommand,
   AdminGetUserCommand,
-} from "@aws-sdk/client-cognito-identity-provider"; 
+} from "@aws-sdk/client-cognito-identity-provider";
 import { prisma } from "@/lib/prisma";
 
 /* -------------------------------------------------------------------------- */
-/*                               COGNITO SETUP                                */
+/*                               ENV + COGNITO                                */
 /* -------------------------------------------------------------------------- */
+
+const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
+
+if (!CLIENT_ID || !USER_POOL_ID) {
+  throw new Error("Missing Cognito environment variables");
+}
 
 const cognito = new CognitoIdentityProviderClient({
   region: "us-east-1",
 });
 
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
-const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
-console.log("CLIENT_ID:", process.env.COGNITO_USER_POOL_CLIENT_ID);
-console.log("POOL:", process.env.COGNITO_USER_POOL_ID);
-
-
-console.log("ENV CHECK:", {
-  client: process.env.COGNITO_USER_POOL_CLIENT_ID, 
-  pool: process.env.COGNITO_USER_POOL_ID,
-});
-
 /* -------------------------------------------------------------------------- */
-/*                         PHONE FORMAT (E.164 SAFE)                           */
+/*                         PHONE FORMAT (E.164 SAFE)                          */
 /* -------------------------------------------------------------------------- */
 
 function formatPhoneE164(phone?: string | null): string | null {
@@ -50,7 +44,7 @@ function formatPhoneE164(phone?: string | null): string | null {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                       FETCH USER ATTRIBUTES (ADMIN)                         */
+/*                       FETCH USER ATTRIBUTES (ADMIN)                        */
 /* -------------------------------------------------------------------------- */
 
 async function getCognitoUserAttributes(email: string) {
@@ -62,6 +56,7 @@ async function getCognitoUserAttributes(email: string) {
   const response = await cognito.send(command);
 
   const attributes: Record<string, string> = {};
+
   response.UserAttributes?.forEach((attr) => {
     if (attr.Name && attr.Value) {
       attributes[attr.Name] = attr.Value;
@@ -72,32 +67,21 @@ async function getCognitoUserAttributes(email: string) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                               POST – REGISTER                               */
+/*                               POST – SIGN UP                               */
 /* -------------------------------------------------------------------------- */
 
 export async function POST(req: Request) {
   try {
-    const { name, email, phone, password, role } = await req.json();
+    const { name, email, phone, password } = await req.json();
 
-    if (!email || !password || !role) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "Email and password are required" },
         { status: 400 }
       );
     }
 
     const formattedPhone = formatPhoneE164(phone);
-
-    if (phone && !formattedPhone) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Invalid phone number. Use international format e.g. +233551234567",
-        },
-        { status: 400 }
-      );
-    }
 
     const userAttributes = [
       { Name: "email", Value: email },
@@ -107,17 +91,14 @@ export async function POST(req: Request) {
         : []),
     ];
 
-    const command = new SignUpCommand({
-      ClientId: CLIENT_ID,
-      Username: email,
-      Password: password,
-      UserAttributes: userAttributes,
-    });
-
-    await cognito.send(command);
-
-    // Temporarily store role in a server-side memory or DB table
-    // (optional) For now, frontend can send role again during confirmation
+    await cognito.send(
+      new SignUpCommand({
+        ClientId: CLIENT_ID,
+        Username: email,
+        Password: password,
+        UserAttributes: userAttributes,
+      })
+    );
 
     return NextResponse.json({
       success: true,
@@ -138,7 +119,7 @@ export async function POST(req: Request) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           PUT – CONFIRM EMAIL                               */
+/*                           PUT – CONFIRM EMAIL                              */
 /* -------------------------------------------------------------------------- */
 
 export async function PUT(req: Request) {
@@ -152,32 +133,38 @@ export async function PUT(req: Request) {
       );
     }
 
-    // 1️⃣ Confirm Cognito signup
+    // ✅ Confirm signup
     await cognito.send(
       new ConfirmSignUpCommand({
         ClientId: CLIENT_ID,
         Username: email,
-        ConfirmationCode: confirmationCode,
+        ConfirmationCode: confirmationCode.trim(), // fixes hidden spaces bug
       })
     );
 
-    // 2️⃣ Fetch Cognito attributes
+    // ✅ Get attributes from Cognito
     const attributes = await getCognitoUserAttributes(email);
 
     const cognitoSub = attributes.sub;
     const name = attributes.name ?? null;
     const phone = attributes.phone_number ?? null;
 
-    // 3️⃣ Persist user in Prisma with correct role
-    await prisma.user.create({
-      data: {
-        email,
-        cognitoSub,
-        name,
-        phone,
-        role: role as "TENANT" | "MANAGER",
-      },
+    // ✅ Avoid duplicate users
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
     });
+
+    if (!existingUser) {
+      await prisma.user.create({
+        data: {
+          email,
+          cognitoSub,
+          name,
+          phone,
+          role: role as "TENANT" | "MANAGER",
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -189,7 +176,10 @@ export async function PUT(req: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Invalid confirmation code",
+        error:
+          error.name === "CodeMismatchException"
+            ? "Invalid verification code."
+            : error.message || "Confirmation failed",
       },
       { status: 400 }
     );
@@ -197,7 +187,7 @@ export async function PUT(req: Request) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          PATCH – RESEND CODE                                */
+/*                          PATCH – RESEND CODE                               */
 /* -------------------------------------------------------------------------- */
 
 export async function PATCH(req: Request) {
