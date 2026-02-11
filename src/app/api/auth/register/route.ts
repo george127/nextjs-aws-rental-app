@@ -7,7 +7,7 @@ import {
   ConfirmSignUpCommand,
   ResendConfirmationCodeCommand,
   AdminGetUserCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
+} from "@aws-sdk/client-cognito-identity-provider"; 
 import { prisma } from "@/lib/prisma";
 
 /* -------------------------------------------------------------------------- */

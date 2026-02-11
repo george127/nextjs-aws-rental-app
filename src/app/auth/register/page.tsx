@@ -9,7 +9,7 @@ import Link from "next/link";
 import { Mail, Phone, User, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Footer from "@/components/Footer"; 
 
 export default function RegisterPage() {
   const router = useRouter();
