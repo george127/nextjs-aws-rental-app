@@ -1,5 +1,3 @@
-
-
 import { NextResponse } from "next/server";
 import {
   CognitoIdentityProviderClient,
@@ -9,6 +7,7 @@ import {
   AdminGetUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 /* -------------------------------------------------------------------------- */
 /*                               COGNITO SETUP                                */
@@ -18,13 +17,29 @@ const cognito = new CognitoIdentityProviderClient({
   region: "us-east-1",
 });
 
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID;
-const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID || process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID;
+const USER_POOL_ID =
+  process.env.COGNITO_USER_POOL_ID || process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID;
+const CLIENT_ID =
+  process.env.COGNITO_USER_POOL_CLIENT_ID ||
+  process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID;
+const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 
-if (!USER_POOL_ID || !CLIENT_ID) {
-  throw new Error("Cognito environment variables are missing");
+if (!USER_POOL_ID || !CLIENT_ID || !CLIENT_SECRET) {
+  throw new Error(
+    "Cognito environment variables are missing: USER_POOL_ID, CLIENT_ID or CLIENT_SECRET"
+  );
 }
 
+/* -------------------------------------------------------------------------- */
+/*                     HELPER TO COMPUTE SECRET_HASH                           */
+/* -------------------------------------------------------------------------- */
+
+function getSecretHash(username: string) {
+  return crypto
+    .createHmac("SHA256", CLIENT_SECRET!)
+    .update(username + CLIENT_ID)
+    .digest("base64");
+}
 
 /* -------------------------------------------------------------------------- */
 /*                         PHONE FORMAT (E.164 SAFE)                           */
@@ -108,13 +123,11 @@ export async function POST(req: Request) {
       ClientId: CLIENT_ID,
       Username: email,
       Password: password,
+      SecretHash: getSecretHash(email), // ✅ Added for client secret
       UserAttributes: userAttributes,
     });
 
     await cognito.send(command);
-
-    // Temporarily store role in a server-side memory or DB table
-    // (optional) For now, frontend can send role again during confirmation
 
     return NextResponse.json({
       success: true,
@@ -155,6 +168,7 @@ export async function PUT(req: Request) {
         ClientId: CLIENT_ID,
         Username: email,
         ConfirmationCode: confirmationCode,
+        SecretHash: getSecretHash(email), // ✅ Added
       })
     );
 
@@ -212,6 +226,7 @@ export async function PATCH(req: Request) {
       new ResendConfirmationCodeCommand({
         ClientId: CLIENT_ID,
         Username: email,
+        SecretHash: getSecretHash(email), // ✅ Added
       })
     );
 
