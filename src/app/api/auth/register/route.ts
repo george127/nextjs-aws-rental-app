@@ -18,8 +18,13 @@ const cognito = new CognitoIdentityProviderClient({
   region: "us-east-1",
 });
 
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
-const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID;
+const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID || process.env.NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID;
+
+if (!USER_POOL_ID || !CLIENT_ID) {
+  throw new Error("Cognito environment variables are missing");
+}
+
 
 /* -------------------------------------------------------------------------- */
 /*                         PHONE FORMAT (E.164 SAFE)                           */
