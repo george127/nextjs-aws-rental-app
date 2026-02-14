@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 const CLIENT_ID = process.env.COGNITO_USER_POOL_CLIENT_ID!;
+const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET!;
+
+// Helper to compute SECRET_HASH
+function getSecretHash(username: string) {
+  return crypto
+    .createHmac("SHA256", CLIENT_SECRET)
+    .update(username + CLIENT_ID)
+    .digest("base64");
+}
 
 export async function POST(req: Request) {
   try {
@@ -23,13 +33,17 @@ export async function POST(req: Request) {
       },
     });
 
+    // Calculate SECRET_HASH
+    const secretHash = getSecretHash(cleanEmail);
+
     const command = new InitiateAuthCommand({
       AuthFlow: "USER_PASSWORD_AUTH",
       ClientId: CLIENT_ID,
       AuthParameters: {
         USERNAME: cleanEmail,
         PASSWORD: password,
-      },   
+        SECRET_HASH: secretHash, // Add the secret hash here
+      },
     });
 
     const response = await client.send(command);
